@@ -3,20 +3,17 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fluttery_dart2/layout.dart';
 import 'package:hookups/scr/matches.dart';
-import 'package:hookups/scr/profile_card.dart';
 
 enum SlideDirection { left, right, up }
 enum SlideRegion { inNopeRegion, inLikeRegion, inSuperLikeRegion }
-
 class DraggableCard extends StatefulWidget {
   final Widget card;
-  final bool isDraggable;
   final SlideDirection slideTo;
   final SlideRegion slideRegion;
   final Function(double distance) onSlideUpdate;
   final Function(SlideRegion slideRegion) onSlideRegionUpdate;
   final Function(SlideDirection direction) onSlideOutComplete;
-
+  final bool isDraggable;
   DraggableCard(
       {this.card,
       this.isDraggable = true,
@@ -26,7 +23,7 @@ class DraggableCard extends StatefulWidget {
       this.slideRegion,
       this.onSlideRegionUpdate});
   @override
-  _DraggableCardState createState() => _DraggableCardState();
+  _DraggableCardState createState() => _DraggableCardState(isDraggable);
 }
 
 class _DraggableCardState extends State<DraggableCard>
@@ -42,10 +39,13 @@ class _DraggableCardState extends State<DraggableCard>
   AnimationController slideBackAnimation;
   Tween<Offset> slideOutTween;
   AnimationController slideOutAnimation;
+  bool isDraggable;
+  _DraggableCardState(this.isDraggable);
 
   @override
   void initState() {
     super.initState();
+    print(isDraggable);
     slideBackAnimation = new AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -181,6 +181,10 @@ class _DraggableCardState extends State<DraggableCard>
   }
 
   void _onPanStart(DragStartDetails details) {
+    if(!isDraggable)
+      return;
+
+    print("onPanStart");
     dragStart = details.globalPosition;
 
     if (slideBackAnimation.isAnimating) {
@@ -189,6 +193,8 @@ class _DraggableCardState extends State<DraggableCard>
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
+    print("UPDATE");
+
     final isInLeftRegion = (cardOffset.dx / context.size.width) < -0.45;
     final isInRightRegion = (cardOffset.dx / context.size.width) > 0.45;
     final isInTopRegion = (cardOffset.dy / context.size.height) < -0.40;
@@ -219,10 +225,14 @@ class _DraggableCardState extends State<DraggableCard>
 
   void _onPanEnd(DragEndDetails details) {
     final dragVector = cardOffset / cardOffset.distance;
+    print((cardOffset.dx / context.size.width));
 
-    final isInLeftRegion = (cardOffset.dx / context.size.width) < -0.45;
-    final isInRightRegion = (cardOffset.dx / context.size.width) > 0.45;
-    final isInTopRegion = (cardOffset.dy / context.size.height) < -0.40;
+    final isInLeftRegion = (cardOffset.dx / context.size.width) < -0.15;
+    final isInRightRegion = (cardOffset.dx / context.size.width) > 0.15;
+    final isInTopRegion = (cardOffset.dy / context.size.height) < -0.10;
+    print("isInLeft $isInLeftRegion");
+    print("isInRightRegion $isInRightRegion");
+    print("isInTopRegion $isInTopRegion");
 
     setState(() {
       if (isInLeftRegion || isInRightRegion) {
@@ -248,6 +258,7 @@ class _DraggableCardState extends State<DraggableCard>
         widget.onSlideRegionUpdate(slideRegion);
       }
     });
+
   }
 
   double _rotation(Rect dragBounds) {
@@ -279,9 +290,7 @@ class _DraggableCardState extends State<DraggableCard>
         return CenterAbout(
           position: anchor,
           child: new Transform(
-            transform:
-                new Matrix4.translationValues(cardOffset.dx, cardOffset.dy, 0.0)
-                  ..rotateZ(_rotation(anchorBounds)),
+            transform: new Matrix4.translationValues(cardOffset.dx, cardOffset.dy, 0.0)..rotateZ(_rotation(anchorBounds)),
             origin: _rotationOrigin(anchorBounds),
             child: new Container(
               key: profileCardKey,
@@ -294,186 +303,6 @@ class _DraggableCardState extends State<DraggableCard>
                 onPanEnd: _onPanEnd,
                 child: widget.card,
               ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _Draggable1CardState extends State<DraggableCard>
-    with TickerProviderStateMixin<DraggableCard> {
-  Decision decision;
-  GlobalKey profileCardKey = new GlobalKey(debugLabel: "profile_card_key");
-  Offset cardOffset = const Offset(0.0, 0.0);
-  Offset dragStart;
-  Offset dragPosition;
-  Offset slideBackStart;
-  SlideDirection slideOutDirection;
-  AnimationController slideBackAnimation;
-  Tween<Offset> slideOutTween;
-  AnimationController slideOutAnimation;
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    slideBackAnimation = new AnimationController(
-        duration: const Duration(milliseconds: 1000), vsync: this)
-      ..addListener(() => setState(() {
-            cardOffset = Offset.lerp(
-              slideBackStart,
-              const Offset(0.0, 0.0),
-              Curves.elasticOut.transform(slideBackAnimation.value),
-            );
-
-            if (null != widget.onSlideUpdate) {
-              widget.onSlideUpdate(cardOffset.distance);
-            }
-          }))
-      ..addStatusListener((AnimationStatus status) {
-        if (status == AnimationStatus.completed) {
-          setState(() {
-            dragStart = null;
-            slideBackStart = null;
-            dragPosition = null;
-          });
-        }
-      });
-
-    slideOutAnimation = new AnimationController(
-        vsync: this, duration: Duration(milliseconds: 500))
-      ..addListener(() {
-        setState(() {
-          cardOffset = slideOutTween.evaluate(slideOutAnimation);
-
-          if (null != widget.onSlideUpdate) {
-            widget.onSlideUpdate(cardOffset.distance);
-          }
-        });
-      })
-      ..addStatusListener((AnimationStatus status) {
-        if (status == AnimationStatus.completed) {
-          setState(() {
-            dragStart = null;
-            dragPosition = null;
-            slideOutTween = null;
-            //cardOffset = const Offset(0.0, 0.0);
-
-            //widget.matchEngine.resetMatch();
-            if (widget.onSlideOutComplete != null) {
-              widget.onSlideOutComplete(slideOutDirection);
-            }
-          });
-        }
-      });
-
-    //widget.matchEngine.addListener(_onMatchChange);
-    //decision = widget.matchEngine.decision;
-  }
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    //widget.matchEngine.removeListener(_onMatchChange);
-    slideBackAnimation.dispose();
-    super.dispose();
-  }
-  void _onPanStart(DragStartDetails details) {
-    dragStart = details.globalPosition;
-    if (slideBackAnimation.isAnimating) {
-      slideBackAnimation.stop(canceled: true);
-    }
-  }
-
-  void _onPanUpdate(DragUpdateDetails details) {
-    setState(() {
-      dragPosition = details.globalPosition;
-      cardOffset = dragPosition - dragStart;
-
-      if (null != widget.onSlideUpdate) {
-        widget.onSlideUpdate(cardOffset.distance);
-      }
-    });
-  }
-
-  void _onPanEnd(DragEndDetails details) {
-    final dragVector = cardOffset / cardOffset.distance;
-    final isInLeftRegion = (cardOffset.dx / context.size.width) < 0.45;
-    final isInRightRegion = (cardOffset.dx / context.size.width) > 0.45;
-    final isInTopRegion = (cardOffset.dy / context.size.height) < -0.40;
-
-    setState(() {
-      if (isInLeftRegion || isInRightRegion) {
-        slideOutTween = new Tween(
-            begin: cardOffset, end: dragVector * (2 * context.size.width));
-        slideOutAnimation.forward(from: 0.0);
-
-        slideOutDirection =
-            isInLeftRegion ? SlideDirection.left : SlideDirection.right;
-      } else if (isInTopRegion) {
-        slideOutTween = new Tween(
-            begin: cardOffset, end: dragVector * (2 * context.size.height));
-        slideOutAnimation.forward(from: 0.0);
-        slideOutDirection = SlideDirection.up;
-      } else {
-        slideBackStart = cardOffset;
-        slideBackAnimation.forward(from: 0.0);
-      }
-    });
-  }
-
-  //handles the card rotation
-  double _rotation(Rect dragBounds) {
-    if (dragStart != null) {
-      final rotationCornerMultiplier =
-          dragStart.dy >= dragBounds.top + (dragBounds.height / 2) ? -1 : 1;
-      return (pi / 8) *
-          (cardOffset.dx / dragBounds.width) *
-          rotationCornerMultiplier;
-    } else {
-      return 0.0;
-    }
-  }
-
-  //handle the card rotation about a point
-  Offset _rotationOrigin(Rect dragBounds) {
-    if (dragStart != null) {
-      return dragStart - dragBounds.topLeft;
-    } else {
-      return const Offset(0.0, 0.0);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _buildCardStack();
-  }
-
-  //build card stack
-  Widget _buildCardStack() {
-    return new AnchoredOverlay(
-      showOverlay: true,
-      child: new Container(),
-      overlayBuilder: (context, anchorBounds, anchor) {
-        return CenterAbout(
-          position: anchor,
-          child: new Transform(
-            transform:
-                new Matrix4.translationValues(cardOffset.dx, cardOffset.dy, 0.0)
-                  ..rotateZ(_rotation(anchorBounds)),
-            origin: _rotationOrigin(anchorBounds),
-            child: new Container(
-              key: profileCardKey,
-              width: anchorBounds.width,
-              height: anchorBounds.height,
-              padding: const EdgeInsets.all(16.0),
-              child: new GestureDetector(
-                  onPanStart: _onPanStart,
-                  onPanUpdate: _onPanUpdate,
-                  onPanEnd: _onPanEnd,
-                  child: widget.card),
             ),
           ),
         );
