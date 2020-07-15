@@ -46,8 +46,6 @@ class _DraggableCardState extends State<DraggableCard>
   @override
   void initState() {
     super.initState();
-    print('CARD STATE');
-
     slideBackAnimation = new AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
